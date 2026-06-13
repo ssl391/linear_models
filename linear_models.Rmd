@@ -64,6 +64,8 @@ coef(fit)
 residuals(fit)
 ```
 
+On this the model chooses variables alphabetically so Bronx is the reference
+
 Let's look at the results better 
 
 ```{r}
@@ -90,7 +92,7 @@ nyc_airbnb =
 
 ```
 
-LOok at that plot again
+Look at that plot again
 
 ```{r}
 nyc_airbnb %>% 
@@ -105,5 +107,14 @@ fit = lm(price ~ stars + borough, data = nyc_airbnb)
 
 broom::tidy(fit)
 broom::glance(fit)
+```
+
+##diagnostics
+
+modelr- added column for residuals, 9.47 higher than what my model predicts, etc. 
+```{r}
+residuals(fit)
+
+modelr::add_residuals(nyc_airbnb, fit)
 ```
 
