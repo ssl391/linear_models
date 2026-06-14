@@ -112,9 +112,39 @@ broom::glance(fit)
 ##diagnostics
 
 modelr- added column for residuals, 9.47 higher than what my model predicts, etc. 
+ylim is limiting outliers
+
 ```{r}
 residuals(fit)
 
-modelr::add_residuals(nyc_airbnb, fit)
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x = borough, y = resid)) +
+  geom_violin() +
+  ylim(-500, 1500)
+
+nyc_airbnb %>% 
+  modelr::add_residuals(fit) %>% 
+  ggplot(aes(x = stars, y = resid)) +
+  geom_point() +
+  facet_wrap(. ~ borough)
 ```
+
+## hypothesis test
+
+This does t- test by default
+```{r}
+fit %>% 
+  broom::tidy()
+```
+
+What about significance of borough- ANOVA F test
+null- borough is unassociated w price
+```{r}
+fit_null = lm(price ~ stars, data = nyc_airbnb)
+fit_alt = lm(price ~ stars + borough, data = nyc_airbnb)
+
+anova(fit_null, fit_alt) %>% 
+  broom::tidy()
+```
+
 

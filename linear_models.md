@@ -154,7 +154,7 @@ broom::glance(fit)
 \##diagnostics
 
 modelr- added column for residuals, 9.47 higher than what my model
-predicts, etc.
+predicts, etc. ylim is limiting outliers
 
 ``` r
 residuals(fit)
@@ -12374,20 +12374,61 @@ residuals(fit)
     ##  135.95966512   -5.03527932  -71.03527932  -17.74114706  769.21109286
 
 ``` r
-modelr::add_residuals(nyc_airbnb, fit)
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x = borough, y = resid)) +
+  geom_violin() +
+  ylim(-500, 1500)
 ```
 
-    ## # A tibble: 40,492 × 6
-    ##    price stars borough neighborhood room_type        resid
-    ##    <dbl> <dbl> <fct>   <chr>        <fct>            <dbl>
-    ##  1    99   5   Bronx   City Island  Private room      9.47
-    ##  2   200  NA   Bronx   City Island  Private room     NA   
-    ##  3   300  NA   Bronx   City Island  Entire home/apt  NA   
-    ##  4   125   5   Bronx   City Island  Entire home/apt  35.5 
-    ##  5    69   5   Bronx   City Island  Private room    -20.5 
-    ##  6   125   5   Bronx   City Island  Entire home/apt  35.5 
-    ##  7    85   5   Bronx   City Island  Entire home/apt  -4.53
-    ##  8    39   4.5 Bronx   Allerton     Private room    -34.5 
-    ##  9    95   5   Bronx   Allerton     Entire home/apt   5.47
-    ## 10   125   4.5 Bronx   Allerton     Entire home/apt  51.5 
-    ## # ℹ 40,482 more rows
+    ## Warning: Removed 9993 rows containing non-finite outside the scale range
+    ## (`stat_ydensity()`).
+
+![](linear_models_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+nyc_airbnb %>% 
+  modelr::add_residuals(fit) %>% 
+  ggplot(aes(x = stars, y = resid)) +
+  geom_point() +
+  facet_wrap(. ~ borough)
+```
+
+    ## Warning: Removed 9962 rows containing missing values or values outside the scale range
+    ## (`geom_point()`).
+
+![](linear_models_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+
+## hypothesis test
+
+This does t- test by default
+
+``` r
+fit %>% 
+  broom::tidy()
+```
+
+    ## # A tibble: 5 × 5
+    ##   term            estimate std.error statistic   p.value
+    ##   <chr>              <dbl>     <dbl>     <dbl>     <dbl>
+    ## 1 (Intercept)         19.8     12.2       1.63 1.04e-  1
+    ## 2 stars               32.0      2.53     12.7  1.27e- 36
+    ## 3 boroughBrooklyn    -49.8      2.23    -22.3  6.32e-109
+    ## 4 boroughQueens      -77.0      3.73    -20.7  2.58e- 94
+    ## 5 boroughBronx       -90.3      8.57    -10.5  6.64e- 26
+
+What about significance of borough- ANOVA F test null- borough is
+unassociated w price
+
+``` r
+fit_null = lm(price ~ stars, data = nyc_airbnb)
+fit_alt = lm(price ~ stars + borough, data = nyc_airbnb)
+
+anova(fit_null, fit_alt) %>% 
+  broom::tidy()
+```
+
+    ## # A tibble: 2 × 7
+    ##   term                    df.residual     rss    df   sumsq statistic    p.value
+    ##   <chr>                         <dbl>   <dbl> <dbl>   <dbl>     <dbl>      <dbl>
+    ## 1 price ~ stars                 30528  1.03e9    NA NA            NA  NA        
+    ## 2 price ~ stars + borough       30525  1.01e9     3  2.53e7      256.  7.84e-164
