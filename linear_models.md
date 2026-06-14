@@ -12432,3 +12432,92 @@ anova(fit_null, fit_alt) %>%
     ##   <chr>                         <dbl>   <dbl> <dbl>   <dbl>     <dbl>      <dbl>
     ## 1 price ~ stars                 30528  1.03e9    NA NA            NA  NA        
     ## 2 price ~ stars + borough       30525  1.01e9     3  2.53e7      256.  7.84e-164
+
+## Nest data, fit models
+
+whether there is an association bw stars and price and does this differ
+by borough? so far- we have looekd at price vs stars and keep slope
+fixed and moved it by borough but maybe there are different types, and
+also room type, does this have a diff effect in manhattan vs other
+boroughs?
+
+We could fit interactions- slope on stars, and interactions stars x
+borough- how does stars affect price by borough
+
+formal and complicated
+
+``` r
+fit = lm(price ~ stars * borough + room_type * borough, data = nyc_airbnb)
+
+broom::tidy(fit)
+```
+
+    ## # A tibble: 16 × 5
+    ##    term                                  estimate std.error statistic  p.value
+    ##    <chr>                                    <dbl>     <dbl>     <dbl>    <dbl>
+    ##  1 (Intercept)                              95.7      19.2     4.99   6.13e- 7
+    ##  2 stars                                    27.1       3.96    6.84   8.20e-12
+    ##  3 boroughBrooklyn                         -26.1      25.1    -1.04   2.99e- 1
+    ##  4 boroughQueens                            -4.12     40.7    -0.101  9.19e- 1
+    ##  5 boroughBronx                             -5.63     77.8    -0.0723 9.42e- 1
+    ##  6 room_typePrivate room                  -124.        3.00  -41.5    0       
+    ##  7 room_typeShared room                   -154.        8.69  -17.7    1.42e-69
+    ##  8 stars:boroughBrooklyn                    -6.14      5.24   -1.17   2.41e- 1
+    ##  9 stars:boroughQueens                     -17.5       8.54   -2.04   4.09e- 2
+    ## 10 stars:boroughBronx                      -22.7      17.1    -1.33   1.85e- 1
+    ## 11 boroughBrooklyn:room_typePrivate room    32.0       4.33    7.39   1.55e-13
+    ## 12 boroughQueens:room_typePrivate room      54.9       7.46    7.37   1.81e-13
+    ## 13 boroughBronx:room_typePrivate room       71.3      18.0     3.96   7.54e- 5
+    ## 14 boroughBrooklyn:room_typeShared room     47.8      13.9     3.44   5.83e- 4
+    ## 15 boroughQueens:room_typeShared room       58.7      17.9     3.28   1.05e- 3
+    ## 16 boroughBronx:room_typeShared room        83.1      42.5     1.96   5.03e- 2
+
+stars increasing does make a diff impact of stars on price seems lower
+in other boroughs room type - price less expensive in manhattan by about
+100 but smaller in other boroughs
+
+this is exploratory and maybe easier to understnad diff models for each
+borough?
+
+``` r
+nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+mutate(
+  models = map(.x = data, ~lm(price ~ stars, data = .x)),
+  results = map(models, broom::tidy)
+) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(term == "stars") %>% 
+  select(borough, term, estimate) %>% 
+  pivot_wider(
+    names_from = borough,
+    values_from = estimate
+  )
+```
+
+    ## # A tibble: 1 × 5
+    ##   term  Bronx Queens Brooklyn Manhattan
+    ##   <chr> <dbl>  <dbl>    <dbl>     <dbl>
+    ## 1 stars  4.91   15.8     28.0      43.3
+
+Let’s nest even more
+
+``` r
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  nest(data = -neighborhood) %>% 
+  mutate(
+  models = map(.x = data, ~lm(price ~ stars + room_type, data = .x)),
+  results = map(models, broom::tidy)
+) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  ggplot(aes(x = neighborhood, y = estimate)) +
+  geom_point() +
+  facet_wrap(. ~ term) +
+  theme(axis.text.x = element_text(angle = 80, hjust = 1))
+```
+
+![](linear_models_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->

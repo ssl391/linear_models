@@ -147,4 +147,65 @@ anova(fit_null, fit_alt) %>%
   broom::tidy()
 ```
 
+## Nest data, fit models
+
+whether there is an association bw stars and price and does this differ by borough?
+so far- we have looekd at price vs stars and keep slope fixed and moved it by borough
+but maybe there are different types, and also room type, does this have a diff effect in manhattan vs other boroughs?
+
+We could fit interactions- slope on stars, and interactions stars x borough- how does stars affect price by borough
+
+formal and complicated
+```{r}
+
+fit = lm(price ~ stars * borough + room_type * borough, data = nyc_airbnb)
+
+broom::tidy(fit)
+```
+stars increasing does make a diff
+impact of stars on price seems lower in other boroughs
+room type - price less expensive in manhattan by about 100 but smaller in other boroughs
+
+
+this is exploratory and maybe easier to understnad
+diff models for each borough? 
+
+```{r}
+
+nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+mutate(
+  models = map(.x = data, ~lm(price ~ stars, data = .x)),
+  results = map(models, broom::tidy)
+) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(term == "stars") %>% 
+  select(borough, term, estimate) %>% 
+  pivot_wider(
+    names_from = borough,
+    values_from = estimate
+  )
+
+
+```
+
+Let's nest even more
+```{r}
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  nest(data = -neighborhood) %>% 
+  mutate(
+  models = map(.x = data, ~lm(price ~ stars + room_type, data = .x)),
+  results = map(models, broom::tidy)
+) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  ggplot(aes(x = neighborhood, y = estimate)) +
+  geom_point() +
+  facet_wrap(. ~ term) +
+  theme(axis.text.x = element_text(angle = 80, hjust = 1))
+
+```
 
